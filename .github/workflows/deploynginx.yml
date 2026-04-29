@@ -26,6 +26,10 @@ jobs:
         id: test
         run: sudo nginx -t
 
+      - name: Reload Nginx
+        if: success()
+        run: sudo systemctl reload nginx
+
   rollback:
     needs: [backup, deploy]
     if: failure() && needs.deploy.result == 'failure'
