@@ -1,0 +1,33 @@
+name: Nginx Config Deployer
+
+on:
+  workflow_call:
+    inputs:
+      # Теперь передаем не файл, а например путь к папке в репо
+      conf_source_dir:
+        required: true
+        type: string
+        default: "./nginx" 
+
+jobs:
+  backup:
+    uses: ./.github/workflows/nginx-backup.yml # Вызов второго шаблона
+
+  deploy:
+    needs: backup
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy All Configs
+        run: cp -r ${{ inputs.conf_source_dir }}/* ${{ vars.NGINX_PATH }}/
+
+      - name: Test Nginx
+        id: test
+        run: nginx -t
+
+  rollback:
+    needs: [backup, deploy]
+    if: failure() && needs.deploy.result == 'failure'
+    uses: ./.github/workflows/nginx-restore.yml # Вызов третьего шаблона

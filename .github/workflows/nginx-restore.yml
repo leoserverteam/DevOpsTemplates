@@ -1,0 +1,19 @@
+name: Nginx Restore
+
+on:
+  workflow_call:
+    inputs:
+      backup_dir:
+        type: string
+        default: "/tmp/nginx_backup"
+
+jobs:
+  restore:
+    runs-on: self-hosted
+    steps:
+      - name: Restore from Backup
+        run: |
+          # Очищаем папку nginx и возвращаем бэкап
+          rm -rf ${{ vars.NGINX_PATH }}/*
+          cp -r ${{ inputs.backup_dir }}/* ${{ vars.NGINX_PATH }}/
+          nginx -s reload

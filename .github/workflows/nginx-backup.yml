@@ -1,0 +1,19 @@
+name: Nginx Backup
+
+on:
+  workflow_call:
+    inputs:
+      backup_dir:
+        type: string
+        default: "/tmp/nginx_backup"
+
+jobs:
+  backup:
+    runs-on: self-hosted
+    steps:
+      - name: Sync to Backup
+        run: |
+          # Создаем чистую папку бэкапа и копируем всё содержимое
+          rm -rf ${{ inputs.backup_dir }}
+          mkdir -p ${{ inputs.backup_dir }}
+          cp -r ${{ vars.NGINX_PATH }}/* ${{ inputs.backup_dir }}/
