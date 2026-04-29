@@ -1,0 +1,139 @@
+name: Reusable Deploy with Configs
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        required: true
+        type: string
+        description: "Название проекта для создания директории"
+      
+      config_paths:
+        required: false
+        type: string
+        description: "Пути к папкам конфигов (разделены запятой), например: 'nginx,config,data'"
+      
+      docker_compose_path:
+        required: false
+        type: string
+        default: "docker-compose.yml"
+        description: "Путь к docker-compose.yml файлу в репозитории"
+      
+      working_directory:
+        required: false
+        type: string
+        default: ""
+        description: "Рабочая директория перед деплоем (если файлы в подпапке)"
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare deployment directory
+        run: |
+          # Создаем целевую директорию на основе DEPLOY_PATH и project_name
+          TARGET_DIR="${{ vars.DEPLOY_PATH }}/${{ inputs.project_name }}"
+          echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
+          
+          # Создаем директорию, если её нет
+          mkdir -p $TARGET_DIR
+          echo "✅ Создана директория: $TARGET_DIR"
+
+      - name: Copy docker-compose file
+        run: |
+          SOURCE_COMPOSE="${{ inputs.docker_compose_path }}"
+          
+          # Если указана рабочая директория, используем её
+          if [ -n "${{ inputs.working_directory }}" ]; then
+            SOURCE_COMPOSE="${{ inputs.working_directory }}/${{ inputs.docker_compose_path }}"
+          fi
+          
+          # Проверяем наличие файла
+          if [ ! -f "$SOURCE_COMPOSE" ]; then
+            echo "❌ Error: docker-compose file not found at $SOURCE_COMPOSE"
+            exit 1
+          fi
+          
+          cp "$SOURCE_COMPOSE" "${{ env.TARGET_DIR }}/docker-compose.yml"
+          echo "✅ docker-compose.yml скопирован"
+
+      - name: Copy configuration directories
+        if: inputs.config_paths != ''
+        run: |
+          # Преобразуем строку с путями в массив
+          IFS=',' read -ra CONFIGS <<< "${{ inputs.config_paths }}"
+          
+          for config in "${CONFIGS[@]}"; do
+            # Удаляем пробелы в начале и конце
+            config=$(echo "$config" | xargs)
+            
+            # Если указана рабочая директория, используем её
+            SOURCE_PATH="$config"
+            if [ -n "${{ inputs.working_directory }}" ]; then
+              SOURCE_PATH="${{ inputs.working_directory }}/$config"
+            fi
+            
+            # Проверяем наличие конфига
+            if [ ! -d "$SOURCE_PATH" ]; then
+              echo "⚠️  Папка конфига не найдена: $SOURCE_PATH (пропускаем)"
+              continue
+            fi
+            
+            # Копируем конфиг
+            if [ -d "$SOURCE_PATH" ]; then
+              cp -r "$SOURCE_PATH" "${{ env.TARGET_DIR }}/"
+              echo "✅ Скопирована папка конфига: $config"
+            else
+              echo "❌ Error: Config directory not found: $SOURCE_PATH"
+              exit 1
+            fi
+          done
+
+      - name: Pull and deploy containers
+        run: |
+          cd "${{ env.TARGET_DIR }}"
+          
+          echo "📦 Обновляем Docker образы..."
+          docker-compose pull
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Error: Failed to pull Docker images"
+            exit 1
+          fi
+          
+          echo "🚀 Запускаем контейнеры..."
+          docker-compose up -d
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Error: Failed to start containers"
+            exit 1
+          fi
+          
+          echo "✅ Деплой успешно завершен"
+
+      - name: Verify deployment
+        run: |
+          cd "${{ env.TARGET_DIR }}"
+          
+          echo "📋 Список запущенных контейнеров:"
+          docker-compose ps
+          
+          echo ""
+          echo "🔍 Проверка здоровья контейнеров:"
+          docker-compose ps --filter "health=unhealthy" | grep -q .
+          
+          if [ $? -eq 0 ]; then
+            echo "⚠️  Внимание: Обнаружены контейнеры с проблемами здоровья"
+          else
+            echo "✅ Все контейнеры работают нормально"
+          fi
+
+      - name: Show deployment info
+        if: always()
+        run: |
+          echo "📁 Содержимое целевой директории:"
+          ls -la "${{ env.TARGET_DIR }}"
