@@ -13,14 +13,14 @@ jobs:
     steps:
       - name: Sync to Backup
         run: |
-          BAK_PATH="${{ inputs.backup_dir }}"
-          SRC_PATH="${{ vars.NGINX_PATH }}"
+          BAK_PATH=${{ inputs.backup_dir }}
+          SRC_PATH=${{ vars.NGINX_PATH }}
           echo "Target backup path: $BAK_PATH"
-          if [ -z "$BAK_PATH" ]; then echo "Error: backup_dir is empty"; exit 1; fi
-          rm -rf "$BAK_PATH"
-          mkdir -p "$BAK_PATH"
-          if [ -d "$SRC_PATH" ] && [ "$(ls -A "$SRC_PATH")" ]; then
-            cp -r "$SRC_PATH"/* "$BAK_PATH"/
+          if [ -z $BAK_PATH ]; then echo "Error: backup_dir is empty"; exit 1; fi
+          rm -rf $BAK_PATH
+          mkdir -p $BAK_PATH
+          if [ -d $SRC_PATH ] && [ "$(ls -A $SRC_PATH)" ]; then
+            cp -r $SRC_PATH/* $BAK_PATH/
             echo "✅ Backup done"
           else
             echo "⚠️ Source path is empty or not a directory"
