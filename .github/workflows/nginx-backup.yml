@@ -5,7 +5,7 @@ on:
     inputs:
       backup_dir:
         type: string
-        default: "${{vars.NGINX_BAK_PATH}}/nginx_backup"
+        default: "${{vars.NGINX_BAK_PATH}}"
 
 jobs:
   backup:
