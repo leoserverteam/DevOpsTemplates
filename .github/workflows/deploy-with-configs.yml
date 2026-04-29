@@ -66,30 +66,32 @@ jobs:
         run: |
           # Преобразуем строку с путями в массив
           IFS=',' read -ra CONFIGS <<< "${{ inputs.config_paths }}"
-          
+
           for config in "${CONFIGS[@]}"; do
             # Удаляем пробелы в начале и конце
             config=$(echo "$config" | xargs)
-            
+            config=${config%/}
+
             # Если указана рабочая директория, используем её
             SOURCE_PATH="$config"
             if [ -n "${{ inputs.working_directory }}" ]; then
               SOURCE_PATH="${{ inputs.working_directory }}/$config"
             fi
-            
-            # Проверяем наличие конфига
-            if [ ! -d "$SOURCE_PATH" ]; then
-              echo "⚠️  Папка конфига не найдена: $SOURCE_PATH (пропускаем)"
+
+            if [ ! -e "$SOURCE_PATH" ]; then
+              echo "⚠️  Путь не найден: $SOURCE_PATH (пропускаем)"
               continue
             fi
-            
-            # Копируем конфиг
+
+            TARGET_PATH="${{ env.TARGET_DIR }}/$config"
+            mkdir -p "$(dirname "$TARGET_PATH")"
+
             if [ -d "$SOURCE_PATH" ]; then
-              cp -r "$SOURCE_PATH" "${{ env.TARGET_DIR }}/"
-              echo "✅ Скопирована папка конфига: $config"
+              cp -a "$SOURCE_PATH" "$TARGET_PATH"
+              echo "✅ Скопирована папка конфига: $config -> $TARGET_PATH"
             else
-              echo "❌ Error: Config directory not found: $SOURCE_PATH"
-              exit 1
+              cp "$SOURCE_PATH" "$TARGET_PATH"
+              echo "✅ Скопирован файл конфига: $config -> $TARGET_PATH"
             fi
           done
 
@@ -118,18 +120,37 @@ jobs:
       - name: Verify deployment
         run: |
           cd "${{ env.TARGET_DIR }}"
-          
+
           echo "📋 Список запущенных контейнеров:"
           docker-compose ps
-          
+
           echo ""
           echo "🔍 Проверка здоровья контейнеров:"
-          docker-compose ps --filter "health=unhealthy" | grep -q .
-          
-          if [ $? -eq 0 ]; then
-            echo "⚠️  Внимание: Обнаружены контейнеры с проблемами здоровья"
+          CONTAINERS=$(docker-compose ps -q)
+
+          if [ -z "$CONTAINERS" ]; then
+            echo "⚠️  Не удалось получить список контейнеров. Проверьте docker-compose.yml и статус запуска"
+            exit 1
+          fi
+
+          unhealthy=0
+          for container in $CONTAINERS; do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$container" 2>/dev/null || true)
+            if [ "$status" = "unhealthy" ]; then
+              echo "⚠️  Контейнер $container в состоянии unhealthy"
+              unhealthy=1
+            elif [ -z "$status" ]; then
+              echo "ℹ️  Для контейнера $container состояние health не задано"
+            else
+              echo "✅ Контейнер $container: health=$status"
+            fi
+          done
+
+          if [ "$unhealthy" -eq 1 ]; then
+            echo "⚠️  Обнаружены контейнеры с проблемами здоровья"
+            exit 1
           else
-            echo "✅ Все контейнеры работают нормально"
+            echo "✅ Все проверенные контейнеры работают нормально"
           fi
 
       - name: Show deployment info
