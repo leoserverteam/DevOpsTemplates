@@ -14,9 +14,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Checkout DevOpsTemplates
+        uses: actions/checkout@v4
+        with:
+          repository: leoserverteam/DevOpsTemplates
+          path: templates
+
       - name: Run Backup Script
         env:
           # Прокидываем переменные окружения для Python
           BAK_PATH: ${{ inputs.backup_dir }}
           SRC_PATH: ${{ vars.NGINX_PATH }} # Предположим, путь источника тоже в vars
-        run: python3 backupnginx.py
+        run: python3 templates/backupnginx.py

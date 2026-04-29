@@ -14,10 +14,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Checkout DevOpsTemplates
+        uses: actions/checkout@v4
+        with:
+          repository: leoserverteam/DevOpsTemplates
+          path: templates
+
       - name: Run Restore Script
         env:
           # Прокидываем переменные организации и инпуты в окружение
           NGINX_PATH: ${{ vars.NGINX_PATH }}
           BACKUP_DIR: ${{ inputs.backup_dir }}
         run: |
-          python3 restorenginx.py
+          python3 templates/restorenginx.py
