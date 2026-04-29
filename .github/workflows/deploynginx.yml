@@ -24,7 +24,7 @@ jobs:
 
       - name: Test Nginx
         id: test
-        run: nginx -t
+        run: sudo nginx -t
 
   rollback:
     needs: [backup, deploy]
