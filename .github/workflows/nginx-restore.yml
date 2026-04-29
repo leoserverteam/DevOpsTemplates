@@ -5,15 +5,19 @@ on:
     inputs:
       backup_dir:
         type: string
-        default: "/tmp/nginx_backup"
+        default: "${{ vars.NGINX_BAK_PATH }}"
 
 jobs:
   restore:
     runs-on: self-hosted
     steps:
-      - name: Restore from Backup
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Restore Script
+        env:
+          # Прокидываем переменные организации и инпуты в окружение
+          NGINX_PATH: ${{ vars.NGINX_PATH }}
+          BACKUP_DIR: ${{ inputs.backup_dir }}
         run: |
-          # Очищаем папку nginx и возвращаем бэкап
-          rm -rf ${{ vars.NGINX_PATH }}/*
-          cp -r ${{ inputs.backup_dir }}/* ${{ vars.NGINX_PATH }}/
-          nginx -s reload
+          python3 restorenginx.py

@@ -1,19 +1,22 @@
-name: Nginx Backup
+name: Nginx Backup (Python version)
 
 on:
   workflow_call:
     inputs:
       backup_dir:
         type: string
-        default: "/tmp/nginx_backup"
+        default: "${{ vars.NGINX_BAK_PATH }}"
 
 jobs:
   backup:
     runs-on: self-hosted
     steps:
-      - name: Sync to Backup
-        run: |
-          # Создаем чистую папку бэкапа и копируем всё содержимое
-          rm -rf ${{ inputs.backup_dir }}
-          mkdir -p ${{ inputs.backup_dir }}
-          cp -r ${{ vars.NGINX_PATH }}/* ${{ inputs.backup_dir }}/
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Backup Script
+        env:
+          # Прокидываем переменные окружения для Python
+          BAK_PATH: ${{ inputs.backup_dir }}
+          SRC_PATH: ${{ vars.NGINX_PATH }} # Предположим, путь источника тоже в vars
+        run: python3 backupnginx.py
