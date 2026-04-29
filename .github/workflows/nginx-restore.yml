@@ -16,4 +16,4 @@ jobs:
           # Очищаем папку nginx и возвращаем бэкап
           rm -rf ${{ vars.NGINX_PATH }}/*
           cp -r ${{ inputs.backup_dir }}/* ${{ vars.NGINX_PATH }}/
-          nginx -s reload
+          sudo systemctl reload nginx
