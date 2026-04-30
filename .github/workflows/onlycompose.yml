@@ -7,6 +7,10 @@ on:
       project_name:
         required: true
         type: string
+      extra_files:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   deploy:
@@ -15,15 +19,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Organziation Path
+      - name: Deploy to Organization Path
         run: |
-          # Используем DEPLOY_PATH из переменных организации и добавляем имя проекта
-          # Если DEPLOY_PATH в переменной это /mnt/.../deploy
           TARGET_DIR="${{ vars.DEPLOY_PATH }}/${{ inputs.project_name }}"
+          mkdir -p "$TARGET_DIR"
           
-          mkdir -p $TARGET_DIR
-          cp docker-compose.yml $TARGET_DIR/
+          # 1. Всегда копируем основной файл
+          cp docker-compose.yml "$TARGET_DIR/"
           
-          cd $TARGET_DIR
+          # 2. Копируем дополнительные файлы/папки, если они указаны
+          EXTRA_FILES="${{ inputs.extra_files }}"
+          if [ -n "$EXTRA_FILES" ]; then
+            for ITEM in $EXTRA_FILES; do
+              echo "Copying $ITEM to $TARGET_DIR..."
+              # Используем cp -r для поддержки папок
+              cp -r "$ITEM" "$TARGET_DIR/"
+            done
+          fi
+          
+          cd "$TARGET_DIR"
           docker-compose pull
-          docker-compose up -d
+          docker-compose up -d --remove-orphans
