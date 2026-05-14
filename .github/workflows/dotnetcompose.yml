@@ -1,0 +1,31 @@
+name: Deploy .NET Application
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        required: true
+        type: string
+        description: "Имя проекта для создания целевой директории"
+      docker_compose_path:
+        required: false
+        type: string
+        default: "./docker-compose.yml"
+        description: "Путь к исходному файлу docker-compose.yml"
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Organization Path
+        run: |
+          TARGET_DIR="${{ vars.DEPLOY_PATH }}/${{ inputs.project_name }}"
+          mkdir -p "$TARGET_DIR"
+          cp -r . "$TARGET_DIR/"
+          cd "$TARGET_DIR"
+          docker-compose down
+          # Сборка образа начнется прямо на сервере перед запуском
+          docker-compose up --build -d --remove-orphans
