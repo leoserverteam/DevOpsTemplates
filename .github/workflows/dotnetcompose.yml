@@ -24,7 +24,7 @@ jobs:
         run: |
           TARGET_DIR="${{ vars.DEPLOY_PATH }}/${{ inputs.project_name }}"
           mkdir -p "$TARGET_DIR"
-          cp -r . "$TARGET_DIR/"
+          rsync -av --exclude='.git' ./ "$TARGET_DIR/"
           cd "$TARGET_DIR"
           docker-compose down
           # Сборка образа начнется прямо на сервере перед запуском
